@@ -7,6 +7,7 @@
 #include "ProceduralStaticMeshSpawner.generated.h"
 
 struct FProceduralStaticMeshInstance;
+class UProceduralStaticMeshTile;
 
 USTRUCT(BlueprintType)
 struct FProceduralStaticMeshType
@@ -49,21 +50,22 @@ public:
 	UPROPERTY(Category = ProceduralStaticMeshSimulation, EditAnywhere, BlueprintReadOnly)
 	int32 RandomSeed;
 
-public:
-	UFUNCTION(BlueprintCallable, Category = ProceduralStaticMeshSimulation)
-	void Simulate(const FBoxSphereBounds& Bounds);
+	/** Length of the tile (in cm) along one axis. The total area of the tile will be TileSize*TileSize. */
+	UPROPERTY(Category = ProceduralStaticMeshSimulation, EditAnywhere, BlueprintReadOnly)
+	float TileSize;
+
+	/** The number of unique tiles to generate. The final simulation is a procedurally determined combination of the various unique tiles. */
+	UPROPERTY(Category = ProceduralStaticMeshSimulation, EditAnywhere, BlueprintReadOnly)
+	int32 NumUniqueTiles;
+
+	void Simulate();
 	
-	void Empty();
-	int32 GetRandomNumber();
-
-
-	TArray<FProceduralStaticMeshInstance*> InstancesSet;
-
-private:
-	void AddRandomSeeds(TArray<FProceduralStaticMeshInstance*>& OutInstances, const FBoxSphereBounds& Bounds);
-	FProceduralStaticMeshInstance* NewSeed(const FVector& Location, float Scale, const FProceduralStaticMeshType* Type);
+	int32 GetRandomNumber() const;
+	const UProceduralStaticMeshTile* GetRandomTile(int32 X, int32 Y);
 
 private:
 
+	TArray<TWeakObjectPtr<UProceduralStaticMeshTile>> PrecomputedTiles;
+	
 	FRandomStream RandomStream;
 };

@@ -3,130 +3,85 @@
 
 #include "ProceduralStaticMeshSpawner.h"
 
+#include "Async/Async.h"
 #include "ProceduralStaticMeshInstance.h"
+#include "ProceduralStaticMeshTile.h"
+#include "Misc/FeedbackContext.h"
+
+#define LOCTEXT_NAMESPACE "ProceduralStaticMesh"
 
 UProceduralStaticMeshSpawner::UProceduralStaticMeshSpawner(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
+	TileSize = 10000;	//100 m
+	NumUniqueTiles = 10;
+	RandomSeed = 42;
 }
-void UProceduralStaticMeshSpawner::Simulate(const FBoxSphereBounds& Bounds)
+void UProceduralStaticMeshSpawner::Simulate()
 {
-	Empty();
-	
 	RandomStream.Initialize(RandomSeed);
 
-	TArray<FProceduralStaticMeshInstance*> NewInstances;
-	
-	AddRandomSeeds(NewInstances, Bounds);
+	PrecomputedTiles.Empty();
+	TArray<TFuture< UProceduralStaticMeshTile* >> Futures;
 
-	InstancesSet.Append(NewInstances);
-	
-}
-
-void UProceduralStaticMeshSpawner::AddRandomSeeds(TArray<FProceduralStaticMeshInstance*>& OutInstances, const FBoxSphereBounds& Bounds)
-{
-	const float SizeTenM2 = ( Bounds.BoxExtent.X * Bounds.BoxExtent.Y) / ( 100.f * 100.f );
-
-	TMap<const FProceduralStaticMeshType*, int32> SeedsLeftMap;
-	TMap<const FProceduralStaticMeshType*, FRandomStream> RandomStreamPerType;
-
-	TArray<const FProceduralStaticMeshType*> TypesToSeed;
-
-	for (int i = 0; i < Types.Num(); ++i)
+	for (int i = 0; i < NumUniqueTiles; ++i)
 	{
-		const FProceduralStaticMeshType* TypeInstance = &Types[i];
-		
-		{	//compute the number of initial seeds
-			const int32 NumSeeds = FMath::RoundToInt((TypeInstance->Density * TypeInstance->Density) * SizeTenM2);
-			SeedsLeftMap.Add(TypeInstance, NumSeeds);
-			if (NumSeeds > 0)
-			{
-				TypesToSeed.Add(TypeInstance);
-			}
-		}
+		UProceduralStaticMeshTile* NewTile = NewObject<UProceduralStaticMeshTile>(this);
+		const int32 RandomNumber = GetRandomNumber();
 
-		{	//save the random stream per type
-			RandomStreamPerType.Add(TypeInstance, FRandomStream(RandomSeed));
-		}
-	}
-
-	int32 TypeIdx = -1;
-	const int32 NumTypes = TypesToSeed.Num();
-	int32 TypesLeftToSeed = NumTypes;
-	while (TypesLeftToSeed > 0)
-	{
-		TypeIdx = (TypeIdx + 1) % NumTypes;	//keep cycling through the types that we spawn initial seeds for to make sure everyone gets fair chance
-
-		if (const FProceduralStaticMeshType* Type = TypesToSeed[TypeIdx])
+		Futures.Add(Async(EAsyncExecution::ThreadPool, [=]()
 		{
-			int32& SeedsLeft = SeedsLeftMap.FindChecked(Type);
-			if (SeedsLeft == 0)
-			{
-				continue;
-			}
-
-			const float Scale = 1;
-
-			FRandomStream& TypeRandomStream = RandomStreamPerType.FindChecked(Type);
-
-			float InitX = TypeRandomStream.FRandRange(Bounds.Origin.X - Bounds.BoxExtent.X, Bounds.Origin.X + Bounds.BoxExtent.X);
-			float InitY = TypeRandomStream.FRandRange(Bounds.Origin.Y - Bounds.BoxExtent.Y, Bounds.Origin.Y + Bounds.BoxExtent.Y);
-			float NeededRadius = 0;
-
-			const float Rad = RandomStream.FRandRange(0, PI*2.f);
-			
-			
-			const FVector GlobalOffset = (RandomStream.FRandRange(0, Type->MaxInitialSeedOffset) + NeededRadius) * FVector(FMath::Cos(Rad), FMath::Sin(Rad), 0.f);
-
-			const float X = InitX + GlobalOffset.X;
-			const float Y = InitY + GlobalOffset.Y;
-
-			if (FProceduralStaticMeshInstance* NewInst = NewSeed(FVector(X, Y, 0.f), Scale, Type))
-			{
-				OutInstances.Add(NewInst);
-			}
-
-			--SeedsLeft;
-			if (SeedsLeft == 0)
-			{
-				--TypesLeftToSeed;
-			}
-		}
+			NewTile->Simulate(this, RandomNumber);
+			return NewTile;
+		}));
 	}
-}
 
-FProceduralStaticMeshInstance* UProceduralStaticMeshSpawner::NewSeed(const FVector& Location, float Scale, const FProceduralStaticMeshType* Type)
-{
-	FProceduralStaticMeshInstance* NewInst = new FProceduralStaticMeshInstance();
-	NewInst->Location = Location;
+	const FText StatusMessage = LOCTEXT("SimulateProceduralStaticMesh", "Simulate ProceduralStaticMesh...");
+	GWarn->BeginSlowTask(StatusMessage, true, true);
+	
+	const int32 TotalTasks = Futures.Num();
 
-	// make a new local random stream to avoid changes to instance randomness changing the position of all other procedural instances
-	FRandomStream LocalStream = RandomStream;
-	RandomStream.GetUnsignedInt(); // advance the parent stream by one
-
-	FRotator Rotation = {0,0,0};
-	Rotation.Yaw   = LocalStream.FRandRange(0, Type->RandomYaw ? 360 : 0);
-	Rotation.Pitch = LocalStream.FRandRange(0, Type->RandomPitchAngle);
-	NewInst->Rotation = FQuat(Rotation);
-	NewInst->Type = Type;
-	NewInst->Normal = FVector(0, 0, 1);
-	NewInst->Scale = Scale;
-
-	return NewInst;
-}
-
-void UProceduralStaticMeshSpawner::Empty()
-{
-	for (FProceduralStaticMeshInstance* Inst : InstancesSet)
+	for (int32 FutureIdx = 0; FutureIdx < Futures.Num(); ++FutureIdx)
 	{
-		delete Inst;
+		// Sleep for 100ms if not ready. Needed so cancel is responsive.
+		while (Futures[FutureIdx].WaitFor(FTimespan::FromMilliseconds(100.0)) == false)
+		{
+			GWarn->StatusUpdate(FutureIdx, TotalTasks, LOCTEXT("SimulateProceduralStaticMesh", "Simulate ProceduraStaticMesh..."));
+		}
+
+		// Even if canceled, block until all threads have exited safely. This ensures memory isn't GC'd.
+		PrecomputedTiles.Add(Futures[FutureIdx].Get());		
 	}
 
-	InstancesSet.Empty();
+	GWarn->EndSlowTask();
 }
 
-int32 UProceduralStaticMeshSpawner::GetRandomNumber()
+
+const UProceduralStaticMeshTile* UProceduralStaticMeshSpawner::GetRandomTile(int32 X, int32 Y)
 {
-	return RandomStream.FRand() * float(RAND_MAX);
+	if (PrecomputedTiles.Num())
+	{
+		// Random stream to use as a hash function
+		FRandomStream HashStream;	
+		
+		HashStream.Initialize(X);
+		const double XRand = HashStream.FRand();
+		
+		HashStream.Initialize(Y);
+		const double YRand = HashStream.FRand();
+		
+		const int32 RandomNumber = (RAND_MAX * XRand / (YRand + 0.01));
+		const int32 Idx = FMath::Clamp(RandomNumber % PrecomputedTiles.Num(), 0, PrecomputedTiles.Num() - 1);
+		return PrecomputedTiles[Idx].Get();
+	}
+
+	return nullptr;
 }
+
+
+int32 UProceduralStaticMeshSpawner::GetRandomNumber() const
+{
+	return RandomStream.FRand() * static_cast<float>(RAND_MAX);
+}
+
+#undef LOCTEXT_NAMESPACE

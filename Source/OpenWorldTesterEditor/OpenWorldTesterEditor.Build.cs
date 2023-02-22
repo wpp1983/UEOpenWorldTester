@@ -24,7 +24,12 @@ public class OpenWorldTesterEditor : ModuleRules
                 "AssetTools",
                 "EditorFramework",
 				"UnrealEd",
-                "OpenWorldTester",
+                "OpenWorldTester", 
+                "TargetDeviceServices", 
+                "LauncherServices", 
+                "GameProjectGeneration",
+                "DeveloperToolSettings",
+                "DesktopPlatform",
                 
                 
             }

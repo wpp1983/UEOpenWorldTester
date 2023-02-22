@@ -12,7 +12,7 @@ class UWorldBuildParam;
 UCLASS()
 class OPENWORLDTESTER_API UWorldBuildTools final : public UBlueprintFunctionLibrary
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 
 	UFUNCTION(BlueprintCallable, Category = OpenWorldTester)

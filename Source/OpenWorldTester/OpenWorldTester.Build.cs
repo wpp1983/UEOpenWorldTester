@@ -39,7 +39,7 @@ public class OpenWorldTester : ModuleRules
 				"Slate",
 				"SlateCore",
 				"Landscape",
-				"UnrealEd", 
+				"DeveloperSettings", 
 				"Foliage",
 				// ... add private dependencies that you statically link with here ...	
 			}
