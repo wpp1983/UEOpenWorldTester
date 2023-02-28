@@ -33,6 +33,9 @@ struct FEditorRequestPackageAndLaunchParams
 	UPROPERTY(BlueprintReadWrite, Category = LevelTestEditor, EditAnywhere)
 	FString LaunchParameters;
 
+	UPROPERTY(BlueprintReadWrite, Category = LevelTestEditor, EditAnywhere)
+	bool IsDebug = false;
+
 };
 
 
@@ -55,4 +58,8 @@ class OPENWORLDTESTEREDITOR_API ULevelTestEditorLibrary : public UBlueprintFunct
 	
 	UFUNCTION(BlueprintCallable, Category = LevelTestEditor)
 	static TArray<FString> GetDeviceIDs();
+
+	UFUNCTION(BlueprintCallable, Category = LevelTestEditor)
+	static TSoftObjectPtr<ULevelTestRuntimeSettings> GetLevelTestDevSetting();
+	
 };

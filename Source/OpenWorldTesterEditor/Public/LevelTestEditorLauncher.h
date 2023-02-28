@@ -4,7 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+
+#if PW7_SCP
+#include "QI_Settings.h"
+#endif
+
+
 #include "LevelTestEditorLauncher.generated.h"
+
+
 
 DECLARE_LOG_CATEGORY_EXTERN(LevelTestEditorLauncher, Log, All);
 
@@ -40,8 +48,11 @@ public:
 	void HandleLaunchCanceled(double TotalTime, bool bHasCode, TWeakPtr<SNotificationItem> NotificationItemPtr);
 	void HandleLaunchCompleted(bool Succeeded, double TotalTime, int32 ErrorCode, bool bHasCode, TWeakPtr<SNotificationItem> NotificationItemPtr);
 
-
 private:
+	void ClearProjectPackageSetting();
+	void RestoreProjectPackageSetting();
+
+	
 	/** This flag is used to skip UAT\UBT compilation on every launch if it was successfully compiled once. */
 	bool bUATSuccessfullyCompiledOnce;
 
@@ -50,4 +61,14 @@ private:
 * Stored outside of the Session Info as the UI needs access to this at all times.
 */
 	FString LastPlayUsingLauncherDeviceId;
+
+	
+	TArray<FFilePath> Old_MapsToCook;
+	TArray<FDirectoryPath> Old_DirectoriesToAlwaysCook;
+	FString Old_DefaultGameMap;
+	FSoftClassPath Old_GameInstanceClass;
+	TArray<FString> Old_PluginsDisableInCook;
+#if PW7_SCP
+	TMap<FName, FAssetTableConfig> Old_QIConfig;
+#endif
 };

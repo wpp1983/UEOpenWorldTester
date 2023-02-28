@@ -53,3 +53,8 @@ TArray<FString> ULevelTestEditorLibrary::GetDeviceIDs()
 
 	return DeviceIDs;
 }
+
+TSoftObjectPtr<ULevelTestRuntimeSettings> ULevelTestEditorLibrary::GetLevelTestDevSetting()
+{
+	return GetDefault<ULevelTestRuntimeSettings>();
+}

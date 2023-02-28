@@ -21,9 +21,13 @@
 #include "GameFramework/GameModeBase.h"
 // #include "ISPC/ispc-1.16.1/examples/cpu/gmres/debug.h"
 
+#include "GameMapsSettings.h"
 #include "LevelTestEditorLibrary.h"
 #include "LevelTestRuntimeLibrary.h"
 #include "LevelTestRuntimeSettings.h"
+#include "Interfaces/IPluginManager.h"
+#include "Interfaces/IProjectManager.h"
+
 
 #define LOCTEXT_NAMESPACE "LevelTestEditorLauncher"
 
@@ -171,7 +175,7 @@ void ULevelTestEditorLauncher::PackageAndLaunchTest(const FEditorRequestPackageA
 	}	
 	
 	// set the build/launch configuration 
-	EBuildConfiguration BuildConfiguration = EBuildConfiguration::Development;
+	EBuildConfiguration BuildConfiguration = Params.IsDebug ? EBuildConfiguration::Debug : EBuildConfiguration::Development;
 
 	// does the project have any code?
 	FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
@@ -210,18 +214,21 @@ void ULevelTestEditorLauncher::PackageAndLaunchTest(const FEditorRequestPackageA
 		}
 	};
 
+	
+	UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+
 	// content only projects won't have multiple targets to pick from, and pasing -target=UnrealGame will fail if what C++ thinks
 	// is a content only project needs a temporary target.cs file in UBT, 
 	// only set the BuildTarget in code-based projects
 	if (bPlayUsingLauncherHasCode)
 	{
-		const FTargetInfo* TargetInfo = GetDefault<UProjectPackagingSettings>()->GetLaunchOnTargetInfo();
+		const FTargetInfo* TargetInfo = PackagingSettings->GetLaunchOnTargetInfo();
 		if (TargetInfo != nullptr)
 		{
 			LauncherProfile->SetBuildTarget(TargetInfo->Name);
 		}
 	}
-
+	ClearProjectPackageSetting();
 	LauncherProfile->SetCookMode(CurrentLauncherCookMode);
 	LauncherProfile->SetUnversionedCooking(!bIncrementalCooking); // Unversioned cooking is not allowed with incremental cooking
 	LauncherProfile->SetIncrementalCooking(bIncrementalCooking);
@@ -229,9 +236,8 @@ void ULevelTestEditorLauncher::PackageAndLaunchTest(const FEditorRequestPackageA
 	SetCookOption(TEXTVIEW("-IgnoreIniSettingsOutOfDate"), bIncrementalCooking && CookerSettings.bIgnoreIniSettingsOutOfDateForIteration);
 	SetCookOption(TEXTVIEW("-IgnoreScriptPackagesOutOfDate"), bIncrementalCooking && CookerSettings.bIgnoreScriptPackagesOutOfDateForIteration);
 	SetCookOption(TEXTVIEW("-IterateSharedCookedbuild"), bIncrementalCooking && ExperimentalSettings.bSharedCookedBuilds);
-	SetCookOption(TEXTVIEW("-NoGameAlwaysCook"), true);
-	SetCookOption(TEXTVIEW("-NoGameAlwaysCook"), true);
-	
+
+
 	LauncherProfile->SetDeployedDeviceGroup(DeviceGroup);
 	LauncherProfile->SetIncrementalDeploying(bIncrementalCooking);
 	LauncherProfile->SetEditorExe(FUnrealEdMisc::Get().GetExecutableForCommandlets());
@@ -483,6 +489,8 @@ void ULevelTestEditorLauncher::HandleStageCompleted(const FString& InStage, doub
 
 void ULevelTestEditorLauncher::HandleLaunchCanceled(double TotalTime, bool bHasCode, TWeakPtr<SNotificationItem> NotificationItemPtr)
 {
+	RestoreProjectPackageSetting();
+	
 	TGraphTask<FLauncherNotificationTask>::CreateTask().ConstructAndDispatchWhenReady(
 		NotificationItemPtr,
 		SNotificationItem::CS_Fail,
@@ -498,6 +506,7 @@ void ULevelTestEditorLauncher::HandleLaunchCanceled(double TotalTime, bool bHasC
 
 void ULevelTestEditorLauncher::HandleLaunchCompleted(bool Succeeded, double TotalTime, int32 ErrorCode, bool bHasCode, TWeakPtr<SNotificationItem> NotificationItemPtr)
 {
+	RestoreProjectPackageSetting();
 	FString PlayUsingLauncherDeviceName = LastPlayUsingLauncherDeviceId.Right(LastPlayUsingLauncherDeviceId.Find(TEXT("@")));
 	
 	const FString DummyIOSDeviceName(FString::Printf(TEXT("All_iOS_On_%s"), FPlatformProcess::ComputerName()));
@@ -566,4 +575,87 @@ void ULevelTestEditorLauncher::HandleLaunchCompleted(bool Succeeded, double Tota
 		FEditorAnalytics::ReportEvent(TEXT( "Editor.LaunchOn.Failed" ), LastPlayUsingLauncherDeviceId.Left(LastPlayUsingLauncherDeviceId.Find(TEXT("@"))), bHasCode, ErrorCode, ParamArray);
 	}
 
+}
+
+void ULevelTestEditorLauncher::ClearProjectPackageSetting()
+{
+
+	//MapsToCook
+	//DirectoriesToAlwaysCook
+	UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+	Old_MapsToCook = PackagingSettings->MapsToCook;
+	PackagingSettings->MapsToCook.Empty();
+	Old_DirectoriesToAlwaysCook = PackagingSettings->DirectoriesToAlwaysCook;
+	PackagingSettings->DirectoriesToAlwaysCook.Empty();
+	PackagingSettings->DirectoriesToAlwaysCook = GetDefault<ULevelTestRuntimeSettings>()->PackagingSetting.DirectoriesToAlwaysCook;
+	PackagingSettings->PostEditChange();
+	PackagingSettings->TryUpdateDefaultConfigFile();
+
+	//DefaultGameMap
+	//GameInstanceClass
+	UGameMapsSettings* GameMapSettings = GetMutableDefault<UGameMapsSettings>();
+	Old_DefaultGameMap = GameMapSettings->GetGameDefaultMap();
+	GameMapSettings->SetGameDefaultMap(TEXT(""));
+	Old_GameInstanceClass = GameMapSettings->GameInstanceClass;
+	GameMapSettings->GameInstanceClass.Reset();
+	GameMapSettings->PostEditChange();
+	GameMapSettings->TryUpdateDefaultConfigFile();
+
+
+	//PluginsToDisableInCook
+	Old_PluginsDisableInCook = GetDefault<ULevelTestRuntimeSettings>()->PackagingSetting.PluginsToDisableInCook;
+	FText FailReason;
+	for (auto PluginDisable : Old_PluginsDisableInCook)
+	{
+		if (!IProjectManager::Get().SetPluginEnabled(PluginDisable, false, FailReason))
+		{
+			UE_LOG(LevelTestEditorLauncher, Warning, TEXT("DisablePlugin %s"), *FailReason.ToString());
+		}
+	}
+
+#if PW7_SCP
+	// clear QuickImportDataTableSetting
+	UQI_Settings* QISettings = GetMutableDefault<UQI_Settings>();
+	Old_QIConfig = QISettings->Config;
+	QISettings->Config.Empty();
+	QISettings->PostEditChange();
+	QISettings->TryUpdateDefaultConfigFile();
+#endif
+}
+
+void ULevelTestEditorLauncher::RestoreProjectPackageSetting()
+{
+	//MapsToCook
+	//DirectoriesToAlwaysCook
+	UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+	PackagingSettings->MapsToCook = Old_MapsToCook;
+	PackagingSettings->DirectoriesToAlwaysCook = Old_DirectoriesToAlwaysCook;
+	PackagingSettings->PostEditChange();
+	PackagingSettings->TryUpdateDefaultConfigFile();
+
+
+	//DefaultGameMap
+	//GameInstanceClass
+	UGameMapsSettings* GameMapSettings = GetMutableDefault<UGameMapsSettings>();
+	GameMapSettings->SetGameDefaultMap(Old_DefaultGameMap);
+	GameMapSettings->GameInstanceClass = Old_GameInstanceClass;
+	GameMapSettings->PostEditChange();
+	GameMapSettings->TryUpdateDefaultConfigFile();
+
+	//PluginsToDisableInCook
+	FText FailReason;
+	for (auto PluginDisable : Old_PluginsDisableInCook)
+	{
+		if (!IProjectManager::Get().SetPluginEnabled(PluginDisable, true, FailReason))
+		{
+			UE_LOG(LevelTestEditorLauncher, Warning, TEXT("EnablePlugin %s"), *FailReason.ToString())
+		}
+	}
+	
+#if PW7_SCP
+	UQI_Settings* QISettings = GetMutableDefault<UQI_Settings>();
+	QISettings->Config = Old_QIConfig ;
+	QISettings->PostEditChange();
+	QISettings->TryUpdateDefaultConfigFile();
+#endif
 }

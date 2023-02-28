@@ -21,11 +21,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest)
 	FSoftObjectPath StartMap;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest)
-	FSoftClassPath FlyGameMode;
+};
+
+
+
+USTRUCT(BlueprintType)
+struct OPENWORLDTESTER_API FLevelTestPackagingSetting 
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest, meta=(AllowedClasses="GameModeBase", DisplayName="GameMode", LongPackageName))
+	TArray<FSoftClassPath> GameMode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest, meta=(DisplayName="Additional Asset Directories to Cook", LongPackageName))
+	TArray<FDirectoryPath> DirectoriesToAlwaysCook;
+	
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest)
-	FSoftClassPath ThirdPersonGameMode;
+	TArray<FString> PluginsToDisableInCook;
+	
 };
 
 
@@ -38,8 +52,11 @@ class OPENWORLDTESTER_API ULevelTestRuntimeSettings final : public UDeveloperSet
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category = LevelTest)
+	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category = LevelTest, AdvancedDisplay)
 	FSoftObjectPath SettingData;
+
+	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category = PackagingSetting, AdvancedDisplay)
+	FLevelTestPackagingSetting PackagingSetting;
 };
 
 
