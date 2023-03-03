@@ -54,8 +54,8 @@ void ULevelTestEditorLauncher::EditorRequestPlaySession(const FEditorRequestPlay
 	auto Settings = ULevelTestRuntimeLibrary::GetRuntimeSettings();
 	if (Settings == nullptr)
 		return;
-	
-	const FSoftObjectPath& Map = Settings->StartMap;
+
+	const FSoftObjectPath& StartMap = GetDefault<ULevelTestRuntimeSettings>()->PackagingSetting.StartMap;
 	// Initialize our own copy of the Editor Play settings which we will adjust defaults on.
 	ULevelEditorPlaySettings* PlayInEditorSettings = NewObject<ULevelEditorPlaySettings>();
 	PlayInEditorSettings->SetPlayNetMode(EPlayNetMode::PIE_Standalone);
@@ -69,7 +69,7 @@ void ULevelTestEditorLauncher::EditorRequestPlaySession(const FEditorRequestPlay
 	PlayInEditorSettings->NewWindowHeight = Params.WindowHeight;
 	
 	FRequestPlaySessionParams PlaySessionParams;
-	PlaySessionParams.GlobalMapOverride = Map.GetLongPackageName();
+	PlaySessionParams.GlobalMapOverride = StartMap.GetLongPackageName();
 	PlaySessionParams.EditorPlaySettings = PlayInEditorSettings;
 
 	
@@ -282,8 +282,16 @@ void ULevelTestEditorLauncher::PackageAndLaunchTest(const FEditorRequestPackageA
 	{
 		LauncherProfile->AddCookedMap(MapsOfNeedAdd.GetLongPackageName());
 	}
-	LauncherProfile->AddCookedMap(SettingsDataAsset->StartMap.GetLongPackageName());
-	LauncherProfile->GetDefaultLaunchRole()->SetInitialMap(SettingsDataAsset->StartMap.GetLongPackageName());
+
+	//StartMap
+	
+	FSoftObjectPath StartMap = GetDefault<ULevelTestRuntimeSettings>()->PackagingSetting.StartMap;
+	if (!StartMap.IsValid() && SettingsDataAsset->Maps.Num() > 0)
+	{
+		StartMap = SettingsDataAsset->Maps[0];	
+	}
+	LauncherProfile->AddCookedMap(StartMap.GetLongPackageName());
+	LauncherProfile->GetDefaultLaunchRole()->SetInitialMap(StartMap.GetLongPackageName());
 
 
 	ILauncherPtr Launcher = LauncherServicesModule.CreateLauncher();
@@ -613,14 +621,14 @@ void ULevelTestEditorLauncher::ClearProjectPackageSetting()
 		}
 	}
 
-#if PW7_SCP
-	// clear QuickImportDataTableSetting
-	UQI_Settings* QISettings = GetMutableDefault<UQI_Settings>();
-	Old_QIConfig = QISettings->Config;
-	QISettings->Config.Empty();
-	QISettings->PostEditChange();
-	QISettings->TryUpdateDefaultConfigFile();
-#endif
+// #if PW7_SCP
+// 	// clear QuickImportDataTableSetting
+// 	UQI_Settings* QISettings = GetMutableDefault<UQI_Settings>();
+// 	Old_QIConfig = QISettings->Config;
+// 	QISettings->Config.Empty();
+// 	QISettings->PostEditChange();
+// 	QISettings->TryUpdateDefaultConfigFile();
+// #endif
 }
 
 void ULevelTestEditorLauncher::RestoreProjectPackageSetting()
@@ -652,10 +660,10 @@ void ULevelTestEditorLauncher::RestoreProjectPackageSetting()
 		}
 	}
 	
-#if PW7_SCP
-	UQI_Settings* QISettings = GetMutableDefault<UQI_Settings>();
-	QISettings->Config = Old_QIConfig ;
-	QISettings->PostEditChange();
-	QISettings->TryUpdateDefaultConfigFile();
-#endif
+// #if PW7_SCP
+// 	UQI_Settings* QISettings = GetMutableDefault<UQI_Settings>();
+// 	QISettings->Config = Old_QIConfig ;
+// 	QISettings->PostEditChange();
+// 	QISettings->TryUpdateDefaultConfigFile();
+// #endif
 }

@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 
-#if PW7_SCP
-#include "QI_Settings.h"
-#endif
+// #if PW7_SCP
+// #include "QI_Settings.h"
+// #endif
 
 
 #include "LevelTestEditorLauncher.generated.h"
@@ -68,7 +68,7 @@ private:
 	FString Old_DefaultGameMap;
 	FSoftClassPath Old_GameInstanceClass;
 	TArray<FString> Old_PluginsDisableInCook;
-#if PW7_SCP
-	TMap<FName, FAssetTableConfig> Old_QIConfig;
-#endif
+// #if PW7_SCP
+// 	TMap<FName, FAssetTableConfig> Old_QIConfig;
+// #endif
 };

@@ -32,11 +32,6 @@ public class OpenWorldTesterEditor : ModuleRules
                 "DesktopPlatform",
                 "EngineSettings", 
                 "Projects",
-                // #if PW7_SCP
-                "QuickImportDataTableRuntime",
-                // #endif
-                
-                
             }
         );
     }

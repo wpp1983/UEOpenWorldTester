@@ -18,8 +18,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest)
 	TArray<FSoftObjectPath> Maps;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest)
-	FSoftObjectPath StartMap;
+
 	
 };
 
@@ -29,6 +28,9 @@ USTRUCT(BlueprintType)
 struct OPENWORLDTESTER_API FLevelTestPackagingSetting 
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest)
+	FSoftObjectPath StartMap;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LevelTest, meta=(AllowedClasses="GameModeBase", DisplayName="GameMode", LongPackageName))
 	TArray<FSoftClassPath> GameMode;
