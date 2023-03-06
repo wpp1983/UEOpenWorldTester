@@ -43,6 +43,7 @@ void UProceduralStaticMeshTile::ExtractDesiredInstances(TArray<FDesiredProcedura
 		FDesiredProceduralStaticMeshInstance* DesiredInst = new (OutDesiredInstances)FDesiredProceduralStaticMeshInstance(StartRay, EndRay, Instance->Type);
 		DesiredInst->Rotation = Instance->Rotation;
 		DesiredInst->ProceduralVolumeBodyInstance = VolumeBodyInstance;
+		DesiredInst->MaterialInstanceColor = Instance->MaterialInstanceColor;
 	}
 }
 
@@ -147,6 +148,10 @@ FProceduralStaticMeshInstance* UProceduralStaticMeshTile::NewSeed(const FVector&
 	NewInst->Type = Type;
 	NewInst->Normal = FVector(0, 0, 1);
 	NewInst->Scale = Scale;
+	if (Type->bRandomMaterialInstance)
+	{
+		NewInst->MaterialInstanceColor = FLinearColor(LocalStream.FRandRange(0, 1), LocalStream.FRandRange(0, 1), LocalStream.FRandRange(0, 1));
+	}
 
 	return NewInst;
 }

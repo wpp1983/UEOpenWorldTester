@@ -239,6 +239,13 @@ void UProceduralStaticMeshComponent::SpawnMeshes(const TArray<FDesiredProcedural
 			NewActor->SetActorRotation(Instance.Rotation.Rotator());
 			NewActor->GetStaticMeshComponent()->SetStaticMesh(Mesh);
 			NewActor->SetMobility(EComponentMobility::Static);
+			if (Instance.ProceduralStaticMeshType->bRandomMaterialInstance)
+			{
+				auto* NewMaterialInstance = UMaterialInstanceDynamic::Create(Mesh->GetMaterial(0), NewActor);
+				int32 OutIndex;
+				NewMaterialInstance->InitializeVectorParameterAndGetIndex(TEXT("RandomColor"), Instance.MaterialInstanceColor, OutIndex);
+				NewActor->GetStaticMeshComponent()->SetMaterial(0, NewMaterialInstance);
+			}
 
 
 			SpawnedActors.Add(NewActor);

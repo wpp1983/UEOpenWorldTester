@@ -29,8 +29,11 @@ public:
 	UPROPERTY(Category = ProceduralFoliageInstance, EditAnywhere, BlueprintReadWrite)
 	FVector Normal;
 
-	UPROPERTY()
+	UPROPERTY(Category = ProceduralFoliageInstance, EditAnywhere, BlueprintReadWrite)
 	float Scale;
+
+	UPROPERTY(Category = ProceduralFoliageInstance, EditAnywhere, BlueprintReadWrite)
+	FLinearColor MaterialInstanceColor;
 
 	const FProceduralStaticMeshType* Type;
 

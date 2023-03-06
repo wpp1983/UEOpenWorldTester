@@ -17,7 +17,7 @@ struct FProceduralStaticMeshType
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ProceduralStaticMeshType", meta=(AllowedClasses = "/Script/Engine.StaticMesh"))
 	FSoftObjectPath StaticMesh;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ProceduralStaticMeshType", meta=(ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ProceduralStaticMeshType", meta=(ClampMin = "0.0", ClampMax = "10.0"))
 	float Density = 1;
 
 	/** The seed that determines placement of initial seeds. */
@@ -31,6 +31,9 @@ struct FProceduralStaticMeshType
 	/** A random pitch adjustment can be applied to each instance, up to the specified angle in degrees, from the original vertical */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ProceduralStaticMeshType", meta=(UIMin = 0, ClampMin = 0, UIMax = 359, ClampMax = 359, ReapplyCondition="ReapplyRandomPitchAngle"))
 	float RandomPitchAngle;
+
+	UPROPERTY( EditAnywhere, Category="ProceduralStaticMeshType")
+	bool bRandomMaterialInstance = true;
 	
 };
 /**

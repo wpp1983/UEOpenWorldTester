@@ -59,6 +59,7 @@ struct FDesiredProceduralStaticMeshInstance
 	FVector StartTrace;
 	FVector EndTrace;
 	FQuat Rotation;
+	FLinearColor MaterialInstanceColor;
 	const struct FBodyInstance* ProceduralVolumeBodyInstance;
 };
 
